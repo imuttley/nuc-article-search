@@ -172,7 +172,10 @@ export function DocumentSearch({
             aria-label={placeholder}
             style={{
               width: "100%",
-              padding: "10px 44px 10px 38px",
+              paddingTop: "10px",
+              paddingBottom: "10px",
+              paddingLeft: "40px",
+              paddingRight: "44px",
               fontSize: "16px",
               fontFamily: "'Titillium Web', system-ui, sans-serif",
               border: `2px solid ${DSI_COLORS.neutralDark}`,
@@ -267,6 +270,24 @@ export function DocumentSearch({
 
       <style>{`
         @keyframes dsi-spin { to { transform: rotate(360deg); } }
+        .document-search .searchbar-input input[type="search"]::-webkit-search-decoration,
+        .document-search .searchbar-input input[type="search"]::-webkit-search-cancel-button,
+        .document-search .searchbar-input input[type="search"]::-webkit-search-results-button,
+        .document-search .searchbar-input input[type="search"]::-webkit-search-results-decoration {
+          -webkit-appearance: none;
+          appearance: none;
+          display: none;
+        }
+        .document-search .searchbar-input input[type="search"]::-ms-clear,
+        .document-search .searchbar-input input[type="search"]::-ms-reveal {
+          display: none;
+          width: 0;
+          height: 0;
+        }
+        .document-search .searchbar-input input[type="search"] {
+          padding-left: 40px !important;
+          padding-right: 44px !important;
+        }
         .document-search .searchbar-input input:focus {
           border-color: ${DSI_COLORS.primary};
           box-shadow: 0 0 0 3px rgba(0, 89, 204, 0.15);
