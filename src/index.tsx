@@ -34,7 +34,12 @@ class DocumentSearchElement extends HTMLElement {
   }
 
   connectedCallback() {
-    this.root = createRoot(this);
+    if (!this.shadowRoot) {
+      this.attachShadow({ mode: "open" });
+    }
+    if (!this.root && this.shadowRoot) {
+      this.root = createRoot(this.shadowRoot);
+    }
     this.render();
   }
 

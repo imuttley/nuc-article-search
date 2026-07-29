@@ -160,45 +160,29 @@ export function DocumentSearch({
       }}
     >
       {/* DSI Search Bar */}
-      <div className="searchbar" style={{ position: "relative" }}>
-        <div className="searchbar-input" style={{ position: "relative", display: "flex" }}>
-          <input
-            ref={inputRef}
-            type="search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder={placeholder}
-            aria-label={placeholder}
-            style={{
-              width: "100%",
-              paddingTop: "10px",
-              paddingBottom: "10px",
-              paddingLeft: "40px",
-              paddingRight: "44px",
-              fontSize: "16px",
-              fontFamily: "'Titillium Web', system-ui, sans-serif",
-              border: `2px solid ${DSI_COLORS.neutralDark}`,
-              borderRadius: "4px",
-              outline: "none",
-              boxSizing: "border-box",
-              background: DSI_COLORS.white,
-              color: DSI_COLORS.text,
-              transition: "border-color 0.2s ease",
-            }}
-            onFocus={(e) => (e.currentTarget.style.borderColor = DSI_COLORS.primary)}
-            onBlur={(e) => (e.currentTarget.style.borderColor = DSI_COLORS.neutralDark)}
-          />
-          {/* Search icon */}
+      <div className="searchbar">
+        <div
+          className="searchbar-input-container"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            width: "100%",
+            border: `2px solid ${DSI_COLORS.neutralDark}`,
+            borderRadius: "4px",
+            background: DSI_COLORS.white,
+            padding: "0 10px 0 12px",
+            gap: "8px",
+            boxSizing: "border-box",
+            transition: "border-color 0.2s ease, box-shadow 0.2s ease",
+          }}
+        >
+          {/* Search icon - rendered before input in flex layout */}
           <svg
             style={{
-              position: "absolute",
-              left: "12px",
-              top: "50%",
-              transform: "translateY(-50%)",
               width: "18px",
               height: "18px",
               color: DSI_COLORS.textLight,
+              flexShrink: 0,
               pointerEvents: "none",
             }}
             viewBox="0 0 24 24"
@@ -212,6 +196,46 @@ export function DocumentSearch({
             <circle cx="11" cy="11" r="8" />
             <line x1="21" y1="21" x2="16.65" y2="16.65" />
           </svg>
+
+          {/* Search input field */}
+          <input
+            ref={inputRef}
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder={placeholder}
+            aria-label={placeholder}
+            style={{
+              flex: 1,
+              minWidth: 0,
+              border: "none",
+              outline: "none",
+              background: "transparent",
+              padding: "10px 0",
+              margin: 0,
+              fontSize: "16px",
+              fontFamily: "'Titillium Web', system-ui, sans-serif",
+              color: DSI_COLORS.text,
+              boxSizing: "border-box",
+              boxShadow: "none",
+            }}
+            onFocus={(e) => {
+              const container = e.currentTarget.parentElement;
+              if (container) {
+                container.style.borderColor = DSI_COLORS.primary;
+                container.style.boxShadow = "0 0 0 3px rgba(0, 89, 204, 0.15)";
+              }
+            }}
+            onBlur={(e) => {
+              const container = e.currentTarget.parentElement;
+              if (container) {
+                container.style.borderColor = DSI_COLORS.neutralDark;
+                container.style.boxShadow = "none";
+              }
+            }}
+          />
+
           {/* Clear button */}
           {query && (
             <button
@@ -222,10 +246,6 @@ export function DocumentSearch({
               }}
               aria-label="Pulisci ricerca"
               style={{
-                position: "absolute",
-                right: "10px",
-                top: "50%",
-                transform: "translateY(-50%)",
                 background: "none",
                 border: "none",
                 padding: "4px",
@@ -235,6 +255,7 @@ export function DocumentSearch({
                 alignItems: "center",
                 justifyContent: "center",
                 borderRadius: "50%",
+                flexShrink: 0,
                 transition: "background 0.2s ease",
               }}
               onMouseEnter={(e) => (e.currentTarget.style.background = DSI_COLORS.neutral)}
@@ -246,20 +267,18 @@ export function DocumentSearch({
               </svg>
             </button>
           )}
+
           {/* Loading spinner */}
           {loading && (
             <div
               className="spinner"
               style={{
-                position: "absolute",
-                right: query ? "36px" : "12px",
-                top: "50%",
-                transform: "translateY(-50%)",
                 width: "18px",
                 height: "18px",
                 border: `2px solid ${DSI_COLORS.neutral}`,
                 borderTopColor: DSI_COLORS.primary,
                 borderRadius: "50%",
+                flexShrink: 0,
                 animation: "dsi-spin 0.7s linear infinite",
               }}
               aria-label="Ricerca in corso"
@@ -270,27 +289,27 @@ export function DocumentSearch({
 
       <style>{`
         @keyframes dsi-spin { to { transform: rotate(360deg); } }
-        .document-search .searchbar-input input[type="search"]::-webkit-search-decoration,
-        .document-search .searchbar-input input[type="search"]::-webkit-search-cancel-button,
-        .document-search .searchbar-input input[type="search"]::-webkit-search-results-button,
-        .document-search .searchbar-input input[type="search"]::-webkit-search-results-decoration {
+        .document-search input[type="search"]::-webkit-search-decoration,
+        .document-search input[type="search"]::-webkit-search-cancel-button,
+        .document-search input[type="search"]::-webkit-search-results-button,
+        .document-search input[type="search"]::-webkit-search-results-decoration {
           -webkit-appearance: none;
           appearance: none;
           display: none;
         }
-        .document-search .searchbar-input input[type="search"]::-ms-clear,
-        .document-search .searchbar-input input[type="search"]::-ms-reveal {
+        .document-search input[type="search"]::-ms-clear,
+        .document-search input[type="search"]::-ms-reveal {
           display: none;
           width: 0;
           height: 0;
         }
-        .document-search .searchbar-input input[type="search"] {
-          padding-left: 40px !important;
-          padding-right: 44px !important;
-        }
-        .document-search .searchbar-input input:focus {
-          border-color: ${DSI_COLORS.primary};
-          box-shadow: 0 0 0 3px rgba(0, 89, 204, 0.15);
+        .document-search .searchbar-input-container input[type="search"] {
+          border: none !important;
+          outline: none !important;
+          background: transparent !important;
+          box-shadow: none !important;
+          padding-left: 0 !important;
+          padding-right: 0 !important;
         }
       `}</style>
 
