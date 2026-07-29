@@ -18,7 +18,7 @@ const result = spawnSync(
       '--format', 'iife',
       '--minify',
       '--sourcemap', 'external',
-      '--banner', '"/* @nicosia/document-search v1.0.0 | MIT License | CMS-agnostic WebComponent */"'
+      '--banner', '/* @imuttley/nuc-article-search v1.0.0 | MIT License | CMS-agnostic WebComponent */'
     ], { encoding: 'utf8' });
     process.stdout.write(r.stdout);
     process.stderr.write(r.stderr);

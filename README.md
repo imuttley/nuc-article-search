@@ -1,4 +1,4 @@
-# @nicosia/document-search
+# @imuttley/nuc-article-search
 
 React WebComponent for fulltext document search. Drop into any CMS (WordPress, Joomla, Drupal, etc.) with a single script tag.
 
@@ -21,7 +21,7 @@ npm install
 npm run build
 
 # Or use via CDN (after publishing)
-<script type="module" src="https://cdn.jsdelivr.net/npm/@nicosia/document-search@1/dist/document-search.js"></script>
+<script type="module" src="https://cdn.jsdelivr.net/npm/@imuttley/nuc-article-search@1/dist/document-search.js"></script>
 ```
 
 ## Usage

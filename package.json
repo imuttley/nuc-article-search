@@ -1,5 +1,5 @@
 {
-  "name": "@nicosia/document-search",
+  "name": "@imuttley/nuc-article-search",
   "version": "1.0.0",
   "description": "React WebComponent for fulltext document search - CMS agnostic",
   "main": "dist/document-search.js",
