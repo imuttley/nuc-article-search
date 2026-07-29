@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document Search WebComponent - Demo</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 720px; margin: 40px auto; padding: 0 20px; background: #fafafa; }
+    h1 { color: #1f2937; }
+    .demo { background: white; padding: 24px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.1); }
+    code { background: #f3f4f6; padding: 2px 6px; border-radius: 4px; font-size: .9em; }
+  </style>
+</head>
+<body>
+  <h1>Document Search WebComponent</h1>
+  <p>Integrable on any CMS via <code>&lt;script&gt;</code> tag. No React required by the host page.</p>
+
+  <div class="demo">
+    <!-- Mock API endpoint - replace with your fulltext search API -->
+    <document-search
+      api-url="https://httpbin.org/anything"
+      placeholder="Cerca documenti..."
+    ></document-search>
+  </div>
+
+  <details style="margin-top: 32px;">
+    <summary><strong>Integration Examples</strong></summary>
+    <pre><code>&lt;!-- 1. Add script tag (in &lt;head&gt; or before &lt;/body&gt;) --&gt;
+&lt;script type="module" src="document-search.js"&gt;&lt;/script&gt;
+
+&lt;!-- 2. Place the element anywhere in your HTML --&gt;
+&lt;document-search
+  api-url="https://your-api.com/search"
+  placeholder="Cerca..."
+  page-size="10"
+  debounce-ms="300"
+&gt;&lt;/document-search&gt;
+
+&lt;!-- 3. Programmatic config (optional) --&gt;
+&lt;script&gt;
+  const el = document.querySelector('document-search');
+  el.searchHeaders = { Authorization: 'Bearer YOUR_TOKEN' };
+  el.addEventListener('results', e => console.log('Results:', e.detail));
+  el.addEventListener('error', e => console.error('Error:', e.detail));
+&lt;/script&gt;</code></pre>
+  </details>
+
+  <script type="module" src="dist/document-search.js"></script>
+</body>
+</html>

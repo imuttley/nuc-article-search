@@ -1,0 +1,31 @@
+{
+  "name": "@nicosia/document-search",
+  "version": "1.0.0",
+  "description": "React WebComponent for fulltext document search - CMS agnostic",
+  "main": "dist/document-search.js",
+  "module": "dist/document-search.js",
+  "types": "dist/document-search.d.ts",
+  "files": ["dist"],
+  "scripts": {
+    "dev": "bun --hot src/index.tsx",
+    "build": "bash build.sh",
+    "typecheck": "bun tsc --noEmit"
+  },
+  "keywords": [
+    "webcomponent",
+    "react",
+    "fulltext-search",
+    "document-search",
+    "cms"
+  ],
+  "license": "MIT",
+  "peerDependencies": {
+    "react": "^18.0.0 || ^19.0.0",
+    "react-dom": "^18.0.0 || ^19.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "bun-types": "^1.0.0"
+  }
+}
