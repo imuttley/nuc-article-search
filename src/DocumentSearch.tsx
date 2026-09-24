@@ -7,6 +7,13 @@ export interface DocumentSearchResult {
   url: string;
   date?: string;
   score?: number;
+  /** Scopus-style extra fields (passed through by the backend) */
+  Authors?: string;
+  "Source title"?: string;
+  DOI?: string;
+  "Document Type"?: string;
+  Year?: string | number;
+  [key: string]: string | number | undefined;
 }
 
 export interface DocumentSearchProps {
@@ -65,21 +72,20 @@ export function DocumentSearch({
   onSearchStart,
 }: DocumentSearchProps) {
   const [query, setQuery] = useState("");
+  const [year, setYear] = useState("");
+  const [years, setYears] = useState<string[]>([]);
   const [results, setResults] = useState<DocumentSearchResult[]>([]);
+  const [totalResults, setTotalResults] = useState(0);
+  const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [searched, setSearched] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const search = useCallback(
-    async (q: string, p: number) => {
-      if (!q.trim()) {
-        setResults([]);
-        setLoading(false);
-        return;
-      }
-
+    async (q: string, y: string, p: number) => {
       abortRef.current?.abort();
       const controller = new AbortController();
       abortRef.current = controller;
@@ -94,6 +100,7 @@ export function DocumentSearch({
           page: String(p),
           size: String(pageSize),
         });
+        if (y) params.set("year", y);
 
         const res = await fetch(`${apiUrl}?${params}`, {
           method: "GET",
@@ -107,26 +114,33 @@ export function DocumentSearch({
         if (!res.ok) throw new Error(`Errore ${res.status}: ${res.statusText}`);
 
         const data = await res.json();
-        // Supporta sia risposta piatta che { results: [...], totalResults: N }
-        const rawItems = Array.isArray(data)
-          ? data
-          : data.results ?? data.items ?? data.data ?? [];
+        if (Array.isArray(data.years)) setYears(data.years);
+        setTotalResults(typeof data.totalResults === "number" ? data.totalResults : 0);
+
+        const rawItems = Array.isArray(data) ? data : data.results ?? data.items ?? data.data ?? [];
         const items: DocumentSearchResult[] = rawItems.map((item: any) => ({
           id: item.id ?? Math.random().toString(36),
-          title: item.title ?? item.Titolo ?? "",
+          title: item.title ?? item.Titolo ?? item.Title ?? "",
           excerpt: item.excerpt ?? item.Abstract ?? item.Descrizione ?? "",
           url: item.url ?? item.Link ?? item.URL ?? "#",
           date: item.date ?? item.Data,
           score: item.score,
+          Authors: item.Authors,
+          "Source title": item["Source title"],
+          DOI: item.DOI,
+          "Document Type": item["Document Type"],
+          Year: item.Year,
         }));
 
         setResults(items);
+        setSearched(true);
         onResults?.(items, q);
       } catch (e) {
         if ((e as Error).name === "AbortError") return;
         const err = e as Error;
         setError(err.message);
         setResults([]);
+        setTotalResults(0);
         onError?.(err);
       } finally {
         setLoading(false);
@@ -135,13 +149,19 @@ export function DocumentSearch({
     [apiUrl, pageSize, headers, onResults, onError, onSearchStart]
   );
 
+  // Debounced full-text search: every query/year/page change triggers a fetch.
   useEffect(() => {
     if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(() => search(query, 0), debounceMs);
+    timerRef.current = setTimeout(() => search(query, year, page), debounceMs);
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [query, debounceMs, search]);
+  }, [query, year, page, debounceMs, search]);
+
+  // Changing the query or year resets pagination to the first page.
+  useEffect(() => {
+    setPage(0);
+  }, [query, year]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Escape") {
@@ -150,12 +170,27 @@ export function DocumentSearch({
     }
   };
 
+  const totalPages = Math.max(1, Math.ceil(totalResults / pageSize));
+
+  const goToPage = (p: number) => {
+    setPage(Math.min(Math.max(0, p), totalPages - 1));
+  };
+
+  const columns: { key: keyof DocumentSearchResult; label: string }[] = [
+    { key: "Authors", label: "Author" },
+    { key: "title", label: "Title" },
+    { key: "Source title", label: "Source title" },
+    { key: "DOI", label: "DOI" },
+    { key: "url", label: "Link" },
+    { key: "Document Type", label: "Document type" },
+    { key: "Year", label: "Year" },
+  ];
+
   return (
     <div
       className="document-search"
       style={{
         fontFamily: "'Titillium Web', system-ui, sans-serif",
-        maxWidth: "640px",
         width: "100%",
       }}
     >
@@ -311,7 +346,62 @@ export function DocumentSearch({
           padding-left: 0 !important;
           padding-right: 0 !important;
         }
+        /* Riga a altezza fissa: troncamento con ellissi su N righe */
+        .document-search .dsi-clamp-1 {
+          display: -webkit-box;
+          -webkit-line-clamp: 1;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: normal;
+        }
+        .document-search .dsi-clamp-2 {
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
       `}</style>
+
+      {/* Year filter */}
+      <div
+        className="year-filter"
+        style={{
+          marginTop: "12px",
+          display: "flex",
+          alignItems: "center",
+          gap: "10px",
+          fontSize: "14px",
+          color: DSI_COLORS.text,
+        }}
+      >
+        <label htmlFor="dsi-year-select" style={{ color: DSI_COLORS.textLight, flexShrink: 0 }}>
+          Anno di pubblicazione:
+        </label>
+        <select
+          id="dsi-year-select"
+          value={year}
+          onChange={(e) => setYear(e.target.value)}
+          style={{
+            padding: "6px 10px",
+            border: `2px solid ${DSI_COLORS.neutralDark}`,
+            borderRadius: "4px",
+            background: DSI_COLORS.white,
+            fontFamily: "'Titillium Web', system-ui, sans-serif",
+            fontSize: "14px",
+            color: DSI_COLORS.text,
+            cursor: "pointer",
+          }}
+        >
+          <option value="">Tutti gli anni</option>
+          {years.map((y) => (
+            <option key={y} value={y}>
+              {y}
+            </option>
+          ))}
+        </select>
+      </div>
 
       {/* Error message */}
       {error && (
@@ -331,7 +421,7 @@ export function DocumentSearch({
         </div>
       )}
 
-      {/* Results */}
+      {/* Results table */}
       {results.length > 0 && (
         <div
           className="results-list"
@@ -339,7 +429,7 @@ export function DocumentSearch({
             marginTop: "16px",
             border: `1px solid ${DSI_COLORS.neutral}`,
             borderRadius: "4px",
-            overflow: "hidden",
+            overflowX: "auto",
             background: DSI_COLORS.white,
           }}
         >
@@ -352,83 +442,199 @@ export function DocumentSearch({
               color: DSI_COLORS.textLight,
             }}
           >
-            {results.length} {results.length === 1 ? "risultato" : "risultati"} per "{query}"
+            {totalResults} {totalResults === 1 ? "risultato" : "risultati"} per "{query || "tutti i documenti"}"
+            {year && <> · anno {year}</>}
           </div>
-          <ul
+          <table
             style={{
-              listStyle: "none",
-              margin: 0,
-              padding: 0,
+              width: "100%",
+              borderCollapse: "collapse",
+              fontSize: "14px",
+              minWidth: "760px",
             }}
-            role="list"
           >
-            {results.map((doc, idx) => (
-              <li
-                key={doc.id}
-                style={{
-                  borderBottom: idx < results.length - 1 ? `1px solid ${DSI_COLORS.neutral}` : "none",
-                }}
-              >
-                <a
-                  href={doc.url}
+            <thead>
+              <tr>
+                {columns.map((c) => (
+                  <th
+                    key={String(c.key)}
+                    style={{
+                      textAlign: "left",
+                      padding: "10px 12px",
+                      background: DSI_COLORS.neutralLight,
+                      borderBottom: `2px solid ${DSI_COLORS.neutralDark}`,
+                      color: DSI_COLORS.textLight,
+                      fontSize: "12px",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.5px",
+                      whiteSpace: "nowrap",
+                      position: "sticky",
+                      top: 0,
+                    }}
+                  >
+                    {c.label}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {results.map((doc) => (
+                <tr
+                  key={doc.id}
                   style={{
-                    display: "block",
-                    padding: "14px 16px",
-                    textDecoration: "none",
-                    color: "inherit",
-                    transition: "background 0.15s ease",
+                    borderBottom: `1px solid ${DSI_COLORS.neutral}`,
                   }}
                   onMouseEnter={(e) => (e.currentTarget.style.background = DSI_COLORS.neutralLight)}
                   onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                 >
-                  <div
-                    style={{
-                      fontWeight: 600,
-                      color: DSI_COLORS.primary,
-                      marginBottom: "4px",
-                      fontSize: "16px",
-                    }}
-                  >
-                    {highlight(doc.title, query)}
-                  </div>
-                  <div
-                    style={{
-                      fontSize: "14px",
-                      color: DSI_COLORS.textLight,
-                      lineHeight: 1.5,
-                      marginBottom: "6px",
-                    }}
-                  >
-                    {highlight(doc.excerpt, query)}
-                  </div>
-                  {doc.date && (
-                    <div
-                      style={{
-                        fontSize: "12px",
-                        color: DSI_COLORS.textLight,
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "4px",
-                      }}
-                    >
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-                        <line x1="16" y1="2" x2="16" y2="6" />
-                        <line x1="8" y1="2" x2="8" y2="6" />
-                        <line x1="3" y1="10" x2="21" y2="10" />
-                      </svg>
-                      {doc.date}
-                    </div>
-                  )}
-                </a>
-              </li>
-            ))}
-          </ul>
+                  {columns.map((c) => {
+                    const raw = doc[c.key];
+                    const value = raw == null ? "" : String(raw);
+                    const isLink = c.key === "url";
+                    const isTitle = c.key === "title";
+                    const isDoi = c.key === "DOI";
+                    // Altezza fissa di riga: ogni cella tronca con ellissi
+                    // (line-clamp). Titolo su 2 righe, tutte le altre su 1.
+                    const clampClass = isTitle ? "dsi-clamp-2" : "dsi-clamp-1";
+                    const cellContent = isLink ? (
+                      value && value !== "#" ? (
+                        <a
+                          href={value}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{
+                            color: DSI_COLORS.primary,
+                            fontSize: "13px",
+                            textDecoration: "none",
+                            whiteSpace: "nowrap",
+                          }}
+                          onMouseEnter={(e) => (e.currentTarget.style.textDecoration = "underline")}
+                          onMouseLeave={(e) => (e.currentTarget.style.textDecoration = "none")}
+                        >
+                          Apri link ↗
+                        </a>
+                      ) : null
+                    ) : isDoi ? (
+                      value ? (
+                        <a
+                          href={`https://doi.org/${value}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className={clampClass}
+                          style={{
+                            color: DSI_COLORS.primary,
+                            fontSize: "12px",
+                            textDecoration: "none",
+                            wordBreak: "break-all",
+                          }}
+                          onMouseEnter={(e) => (e.currentTarget.style.textDecoration = "underline")}
+                          onMouseLeave={(e) => (e.currentTarget.style.textDecoration = "none")}
+                        >
+                          {highlight(value, query)}
+                        </a>
+                      ) : null
+                    ) : isTitle ? (
+                      <a
+                        href={doc.url || "#"}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={clampClass}
+                        style={{
+                          color: DSI_COLORS.primary,
+                          fontWeight: 600,
+                          textDecoration: "none",
+                        }}
+                        onMouseEnter={(e) => (e.currentTarget.style.textDecoration = "underline")}
+                        onMouseLeave={(e) => (e.currentTarget.style.textDecoration = "none")}
+                      >
+                        {highlight(value, query)}
+                      </a>
+                    ) : (
+                      <span className={clampClass} style={{ display: "-webkit-box" }}>
+                        {highlight(value, query)}
+                      </span>
+                    );
+                    return (
+                      <td
+                        key={String(c.key)}
+                        style={{
+                          padding: "10px 12px",
+                          verticalAlign: "top",
+                          color: DSI_COLORS.text,
+                          fontSize: "13px",
+                          lineHeight: 1.45,
+                          height: "58px",
+                          maxHeight: "58px",
+                          overflow: "hidden",
+                        }}
+                      >
+                        {cellContent}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div
+          className="pagination"
+          style={{
+            marginTop: "14px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "12px",
+            fontSize: "14px",
+            color: DSI_COLORS.text,
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => goToPage(page - 1)}
+            disabled={page === 0}
+            style={{
+              padding: "6px 14px",
+              border: `2px solid ${DSI_COLORS.neutralDark}`,
+              borderRadius: "4px",
+              background: DSI_COLORS.white,
+              color: page === 0 ? DSI_COLORS.neutralDark : DSI_COLORS.primary,
+              cursor: page === 0 ? "not-allowed" : "pointer",
+              fontFamily: "'Titillium Web', system-ui, sans-serif",
+              fontSize: "14px",
+            }}
+          >
+            ← Precedente
+          </button>
+          <span>
+            Pagina {page + 1} di {totalPages}
+          </span>
+          <button
+            type="button"
+            onClick={() => goToPage(page + 1)}
+            disabled={page >= totalPages - 1}
+            style={{
+              padding: "6px 14px",
+              border: `2px solid ${DSI_COLORS.neutralDark}`,
+              borderRadius: "4px",
+              background: DSI_COLORS.white,
+              color: page >= totalPages - 1 ? DSI_COLORS.neutralDark : DSI_COLORS.primary,
+              cursor: page >= totalPages - 1 ? "not-allowed" : "pointer",
+              fontFamily: "'Titillium Web', system-ui, sans-serif",
+              fontSize: "14px",
+            }}
+          >
+            Successiva →
+          </button>
         </div>
       )}
 
       {/* No results */}
-      {query.trim() && !loading && results.length === 0 && !error && (
+      {searched && !loading && results.length === 0 && !error && (
         <div
           style={{
             marginTop: "16px",
@@ -455,10 +661,11 @@ export function DocumentSearch({
             <line x1="8" y1="11" x2="14" y2="11" />
           </svg>
           <p style={{ margin: 0, fontSize: "15px" }}>
-            Nessun risultato per "<strong>{query}</strong>"
+            Nessun risultato{query ? <> per "<strong>{query}</strong>"</> : null}
+            {year ? <> nell'anno {year}</> : null}
           </p>
           <p style={{ margin: "8px 0 0", fontSize: "13px" }}>
-            Prova a modificare i termini di ricerca
+            Prova a modificare i termini di ricerca o l'anno selezionato
           </p>
         </div>
       )}
