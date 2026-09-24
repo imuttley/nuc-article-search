@@ -80,12 +80,16 @@ export function DocumentSearch({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searched, setSearched] = useState(false);
+  // Ordinamento: colonna corrente (chiave campo) e direzione. Default:
+  // Year discendente (più recenti in cima), come ordinamento naturale.
+  const [sort, setSort] = useState("");
+  const [dir, setDir] = useState<"asc" | "desc">("asc");
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const search = useCallback(
-    async (q: string, y: string, p: number) => {
+    async (q: string, y: string, p: number, s: string, d: "asc" | "desc") => {
       abortRef.current?.abort();
       const controller = new AbortController();
       abortRef.current = controller;
@@ -101,6 +105,10 @@ export function DocumentSearch({
           size: String(pageSize),
         });
         if (y) params.set("year", y);
+        if (s) {
+          params.set("sort", s);
+          params.set("dir", d);
+        }
 
         const res = await fetch(`${apiUrl}?${params}`, {
           method: "GET",
@@ -149,19 +157,30 @@ export function DocumentSearch({
     [apiUrl, pageSize, headers, onResults, onError, onSearchStart]
   );
 
-  // Debounced full-text search: every query/year/page change triggers a fetch.
+  // Debounced full-text search: query/year/page/sort triggers a fetch.
   useEffect(() => {
     if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(() => search(query, year, page), debounceMs);
+    timerRef.current = setTimeout(() => search(query, year, page, sort, dir), debounceMs);
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [query, year, page, debounceMs, search]);
+  }, [query, year, page, sort, dir, debounceMs, search]);
 
-  // Changing the query or year resets pagination to the first page.
+  // Changing query/year/sort resets pagination to the first page.
   useEffect(() => {
     setPage(0);
-  }, [query, year]);
+  }, [query, year, sort, dir]);
+
+  // Click su un'intestazione: prima selezione → asc; seconda → desc;
+  // su una colonna diversa → riparte da asc.
+  const toggleSort = (key: string) => {
+    if (sort === key) {
+      setDir(dir === "asc" ? "desc" : "asc");
+    } else {
+      setSort(key);
+      setDir("asc");
+    }
+  };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Escape") {
@@ -455,26 +474,35 @@ export function DocumentSearch({
           >
             <thead>
               <tr>
-                {columns.map((c) => (
-                  <th
-                    key={String(c.key)}
-                    style={{
-                      textAlign: "left",
-                      padding: "10px 12px",
-                      background: DSI_COLORS.neutralLight,
-                      borderBottom: `2px solid ${DSI_COLORS.neutralDark}`,
-                      color: DSI_COLORS.textLight,
-                      fontSize: "12px",
-                      textTransform: "uppercase",
-                      letterSpacing: "0.5px",
-                      whiteSpace: "nowrap",
-                      position: "sticky",
-                      top: 0,
-                    }}
-                  >
-                    {c.label}
-                  </th>
-                ))}
+                {columns.map((c) => {
+                  const isSortable = c.key !== "url";
+                  const active = sort === c.key;
+                  const arrow = active ? (dir === "asc" ? " ▲" : " ▼") : "";
+                  return (
+                    <th
+                      key={String(c.key)}
+                      onClick={isSortable ? () => toggleSort(String(c.key)) : undefined}
+                      style={{
+                        textAlign: "left",
+                        padding: "10px 12px",
+                        background: DSI_COLORS.neutralLight,
+                        borderBottom: `2px solid ${DSI_COLORS.neutralDark}`,
+                        color: active ? DSI_COLORS.primary : DSI_COLORS.textLight,
+                        fontSize: "12px",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.5px",
+                        whiteSpace: "nowrap",
+                        position: "sticky",
+                        top: 0,
+                        cursor: isSortable ? "pointer" : "default",
+                        userSelect: "none",
+                      }}
+                    >
+                      {c.label}
+                      {arrow}
+                    </th>
+                  );
+                })}
               </tr>
             </thead>
             <tbody>
